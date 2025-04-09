@@ -1,5 +1,4 @@
-
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { Demand, DemandFilters } from "@/types";
@@ -44,6 +43,17 @@ const DemandPage = () => {
     resourceMapped: "Unassigned",
     comment: "",
   });
+
+  // Role to RoleCode mapping
+  const roleToCodeMap = {
+    "Software Engineer": "SE",
+    "Project Manager": "PM",
+    "Business Analyst": "BA",
+    "UX Designer": "UX",
+    "DevOps Engineer": "DO",
+    "Data Scientist": "DS",
+    "QA Engineer": "QA"
+  };
   
   // Filter options
   const roleOptions = [...new Set(demands.map(demand => demand.role))].map(role => ({
@@ -69,6 +79,11 @@ const DemandPage = () => {
   const startMonthOptions = [...new Set(demands.map(demand => demand.startMonth))].map(month => ({
     label: month,
     value: month,
+  }));
+
+  const accountOptions = [...new Set(accounts.map(account => account.client))].map(client => ({
+    label: client,
+    value: client,
   }));
   
   // Handle filter changes
@@ -101,10 +116,19 @@ const DemandPage = () => {
   };
   
   const handleSelectChange = (name: string, value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      [name]: value,
-    }));
+    if (name === 'role') {
+      // Auto-select role code based on role
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+        roleCode: roleToCodeMap[value as keyof typeof roleToCodeMap] || ""
+      }));
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value,
+      }));
+    }
   };
   
   // Populate project details when account is selected
@@ -224,51 +248,57 @@ const DemandPage = () => {
     setSelectedDemand(demand);
     setIsDeleteDialogOpen(true);
   };
+
+  // Get account name by id
+  const getAccountName = (accountId: string) => {
+    const account = accounts.find(a => a.id === accountId);
+    return account ? account.client : "Unknown";
+  };
   
   // Table columns
   const columns = [
     {
       header: "S.No",
-      accessor: "sno",
+      accessor: "sno" as keyof Demand,
       className: "font-medium w-16",
     },
     {
+      header: "Account",
+      accessor: (row: Demand) => getAccountName(row.accountId),
+    },
+    {
       header: "Project",
-      accessor: "project",
+      accessor: "project" as keyof Demand,
       className: "max-w-xs",
       cell: (value: string) => (
         <div className="truncate-text">{value}</div>
       ),
     },
     {
-      header: "Role",
-      accessor: "role",
-    },
-    {
       header: "Role Code",
-      accessor: "roleCode",
+      accessor: "roleCode" as keyof Demand,
       className: "w-24",
     },
     {
       header: "Location",
-      accessor: "location",
+      accessor: "location" as keyof Demand,
     },
     {
       header: "Start Month",
-      accessor: "startMonth",
+      accessor: "startMonth" as keyof Demand,
     },
     {
       header: "Probability",
-      accessor: "probability",
+      accessor: "probability" as keyof Demand,
       cell: (value: number) => `${value}%`,
     },
     {
       header: "Status",
-      accessor: "status",
+      accessor: "status" as keyof Demand,
     },
     {
       header: "Resource Mapped",
-      accessor: "resourceMapped",
+      accessor: "resourceMapped" as keyof Demand,
       cell: (value: string) => value || "Unassigned",
     },
     {
@@ -305,7 +335,7 @@ const DemandPage = () => {
   ];
   
   // Get accounts as options for select dropdown
-  const accountOptions = accounts.map(account => ({
+  const accountSelectOptions = accounts.map(account => ({
     value: account.id,
     label: `${account.client} - ${account.project}`,
   }));
@@ -354,6 +384,18 @@ const DemandPage = () => {
             onChange={(values) => handleFilterChange('status', values)}
           />
           <FilterDropdown
+            label="Account"
+            options={accountOptions}
+            selectedValues={filters.account || []}
+            onChange={(values) => handleFilterChange('account', values)}
+          />
+          <FilterDropdown
+            label="Start Month"
+            options={startMonthOptions}
+            selectedValues={filters.startMonth || []}
+            onChange={(values) => handleFilterChange('startMonth', values)}
+          />
+          <FilterDropdown
             label="Probability"
             options={probabilityOptions}
             selectedValues={filters.probability || []}
@@ -391,7 +433,7 @@ const DemandPage = () => {
                 <SelectValue placeholder="Select account" />
               </SelectTrigger>
               <SelectContent>
-                {accountOptions.map(option => (
+                {accountSelectOptions.map(option => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -422,24 +464,14 @@ const DemandPage = () => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="roleCode">Role Code</Label>
-            <Select
+            <Label htmlFor="roleCode">Role Code (Auto-selected)</Label>
+            <Input
+              id="roleCode"
+              name="roleCode"
               value={formData.roleCode || ''}
-              onValueChange={(value) => handleSelectChange('roleCode', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select role code" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="SE">SE (Software Engineer)</SelectItem>
-                <SelectItem value="PM">PM (Project Manager)</SelectItem>
-                <SelectItem value="BA">BA (Business Analyst)</SelectItem>
-                <SelectItem value="UX">UX (UX Designer)</SelectItem>
-                <SelectItem value="DO">DO (DevOps Engineer)</SelectItem>
-                <SelectItem value="DS">DS (Data Scientist)</SelectItem>
-                <SelectItem value="QA">QA (QA Engineer)</SelectItem>
-              </SelectContent>
-            </Select>
+              disabled
+              className="bg-muted"
+            />
           </div>
           
           <div className="space-y-2">
@@ -699,7 +731,7 @@ const DemandPage = () => {
                 <SelectValue placeholder="Select account" />
               </SelectTrigger>
               <SelectContent>
-                {accountOptions.map(option => (
+                {accountSelectOptions.map(option => (
                   <SelectItem key={option.value} value={option.value}>
                     {option.label}
                   </SelectItem>
@@ -730,24 +762,14 @@ const DemandPage = () => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="roleCode">Role Code</Label>
-            <Select
+            <Label htmlFor="roleCode">Role Code (Auto-selected)</Label>
+            <Input
+              id="roleCode"
+              name="roleCode"
               value={formData.roleCode || ''}
-              onValueChange={(value) => handleSelectChange('roleCode', value)}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select role code" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="SE">SE (Software Engineer)</SelectItem>
-                <SelectItem value="PM">PM (Project Manager)</SelectItem>
-                <SelectItem value="BA">BA (Business Analyst)</SelectItem>
-                <SelectItem value="UX">UX (UX Designer)</SelectItem>
-                <SelectItem value="DO">DO (DevOps Engineer)</SelectItem>
-                <SelectItem value="DS">DS (Data Scientist)</SelectItem>
-                <SelectItem value="QA">QA (QA Engineer)</SelectItem>
-              </SelectContent>
-            </Select>
+              disabled
+              className="bg-muted"
+            />
           </div>
           
           <div className="space-y-2">

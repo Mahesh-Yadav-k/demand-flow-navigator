@@ -6,14 +6,13 @@ import { Account, AccountFilters } from "@/types";
 import { DataTable } from "@/components/ui/data-table";
 import { Button } from "@/components/ui/button";
 import { FilterDropdown } from "@/components/ui/filter-dropdown";
-import { FormModal } from "@/components/ui/form-modal";
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus, Search, Filter, Trash, Edit, Eye } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { FormModal } from "@/components/ui/form-modal";
 import { Label } from "@/components/ui/label";
-import { format } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 
 const AccountsPage = () => {
   const { accounts, filterAccounts, addAccount, updateAccount, deleteAccount } = useData();
@@ -34,9 +33,9 @@ const AccountsPage = () => {
     opptyId: "",
     client: "",
     project: "",
-    vertical: "",
-    geo: "",
-    startMonth: "",
+    vertical: "Technology",
+    geo: "NA",
+    startMonth: new Date().toLocaleString('default', { month: 'short' }) + ' ' + new Date().getFullYear(),
     revisedStartDate: "",
     plannedStartDate: "",
     plannedEndDate: "",
@@ -61,12 +60,12 @@ const AccountsPage = () => {
     value: project,
   }));
   
-  const verticalOptions = [...new Set(accounts.map(account => account.vertical))].map(vertical => ({
-    label: vertical,
-    value: vertical,
+  const statusOptions = [...new Set(accounts.map(account => account.opportunityStatus))].map(status => ({
+    label: status,
+    value: status,
   }));
   
-  const statusOptions = [...new Set(accounts.map(account => account.opportunityStatus))].map(status => ({
+  const sowStatusOptions = [...new Set(accounts.map(account => account.sowStatus))].map(status => ({
     label: status,
     value: status,
   }));
@@ -75,7 +74,12 @@ const AccountsPage = () => {
     label: `${prob}%`,
     value: prob,
   }));
-  
+
+  const verticalOptions = [...new Set(accounts.map(account => account.vertical))].map(vertical => ({
+    label: vertical,
+    value: vertical,
+  }));
+
   const startMonthOptions = [...new Set(accounts.map(account => account.startMonth))].map(month => ({
     label: month,
     value: month,
@@ -94,10 +98,9 @@ const AccountsPage = () => {
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
-      account.opptyId.toLowerCase().includes(query) ||
-      account.client.toLowerCase().includes(query) ||
       account.project.toLowerCase().includes(query) ||
-      account.clientPartner.toLowerCase().includes(query)
+      account.client.toLowerCase().includes(query) ||
+      account.opptyId.toLowerCase().includes(query)
     );
   });
   
@@ -110,7 +113,7 @@ const AccountsPage = () => {
     }));
   };
   
-  const handleSelectChange = (name: string, value: string) => {
+  const handleSelectChange = (name: string, value: string | number) => {
     setFormData(prev => ({
       ...prev,
       [name]: value,
@@ -119,8 +122,7 @@ const AccountsPage = () => {
   
   // Handle form submission
   const handleAddSubmit = async () => {
-    if (!formData.client || !formData.project || !formData.opptyId) {
-      // Show error - required fields missing
+    if (!formData.client || !formData.project) {
       return;
     }
     
@@ -141,9 +143,9 @@ const AccountsPage = () => {
         opptyId: "",
         client: "",
         project: "",
-        vertical: "",
-        geo: "",
-        startMonth: "",
+        vertical: "Technology",
+        geo: "NA",
+        startMonth: new Date().toLocaleString('default', { month: 'short' }) + ' ' + new Date().getFullYear(),
         revisedStartDate: "",
         plannedStartDate: "",
         plannedEndDate: "",
@@ -193,9 +195,11 @@ const AccountsPage = () => {
     setIsSubmitting(true);
     
     try {
-      await deleteAccount(selectedAccount.id);
-      setIsDeleteDialogOpen(false);
-      setSelectedAccount(null);
+      const success = await deleteAccount(selectedAccount.id);
+      if (success) {
+        setIsDeleteDialogOpen(false);
+        setSelectedAccount(null);
+      }
     } catch (error) {
       console.error("Failed to delete account:", error);
     } finally {
@@ -226,16 +230,16 @@ const AccountsPage = () => {
   const columns = [
     {
       header: "Oppty ID",
-      accessor: "opptyId",
+      accessor: "opptyId" as keyof Account,
       className: "font-medium",
     },
     {
       header: "Client",
-      accessor: "client",
+      accessor: "client" as keyof Account,
     },
     {
       header: "Project",
-      accessor: "project",
+      accessor: "project" as keyof Account,
       className: "max-w-xs",
       cell: (value: string) => (
         <div className="truncate-text">{value}</div>
@@ -243,24 +247,32 @@ const AccountsPage = () => {
     },
     {
       header: "Vertical",
-      accessor: "vertical",
+      accessor: "vertical" as keyof Account,
     },
     {
       header: "Geo",
-      accessor: "geo",
+      accessor: "geo" as keyof Account,
     },
     {
       header: "Start Month",
-      accessor: "startMonth",
+      accessor: "startMonth" as keyof Account,
     },
     {
       header: "Probability",
-      accessor: "probability",
+      accessor: "probability" as keyof Account,
       cell: (value: number) => `${value}%`,
     },
     {
       header: "Opportunity Status",
-      accessor: "opportunityStatus",
+      accessor: "opportunityStatus" as keyof Account,
+    },
+    {
+      header: "SOW Status",
+      accessor: "sowStatus" as keyof Account,
+    },
+    {
+      header: "Project Status",
+      accessor: "projectStatus" as keyof Account,
     },
     {
       header: "Actions",
@@ -273,7 +285,7 @@ const AccountsPage = () => {
             <Eye className="h-4 w-4" />
           </Button>
           
-          {hasPermission('canEditAccounts') && (
+          {hasPermission('canEditAccount') && (
             <Button variant="ghost" size="icon" onClick={(e) => {
               e.stopPropagation();
               handleEditAccount(row);
@@ -282,7 +294,7 @@ const AccountsPage = () => {
             </Button>
           )}
           
-          {hasPermission('canDeleteAccounts') && (
+          {hasPermission('canDeleteAccount') && (
             <Button variant="ghost" size="icon" onClick={(e) => {
               e.stopPropagation();
               handleDeleteAccount(row);
@@ -300,7 +312,7 @@ const AccountsPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">Account Management</h1>
         
-        {hasPermission('canAddAccounts') && (
+        {hasPermission('canAddAccount') && (
           <Button onClick={() => setIsAddModalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Account
@@ -333,10 +345,28 @@ const AccountsPage = () => {
             onChange={(values) => handleFilterChange('project', values)}
           />
           <FilterDropdown
-            label="Status"
+            label="Opportunity Status"
             options={statusOptions}
             selectedValues={filters.opportunityStatus || []}
             onChange={(values) => handleFilterChange('opportunityStatus', values)}
+          />
+          <FilterDropdown
+            label="SOW Status"
+            options={sowStatusOptions}
+            selectedValues={filters.sowStatus || []}
+            onChange={(values) => handleFilterChange('sowStatus', values)}
+          />
+          <FilterDropdown
+            label="Vertical"
+            options={verticalOptions}
+            selectedValues={filters.vertical || []}
+            onChange={(values) => handleFilterChange('vertical', values)}
+          />
+          <FilterDropdown
+            label="Start Month"
+            options={startMonthOptions}
+            selectedValues={filters.startMonth || []}
+            onChange={(values) => handleFilterChange('startMonth', values)}
           />
           <FilterDropdown
             label="Probability"
