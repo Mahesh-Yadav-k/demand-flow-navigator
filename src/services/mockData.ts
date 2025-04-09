@@ -3,7 +3,11 @@ import { Account, Demand, DashboardKPIs, OpportunityStatus, SOWStatus, ProjectSt
 
 // Helper function to generate a random date within a range
 const randomDate = (start: Date, end: Date): string => {
-  const date = new Date(start.getTime() + Math.random() * (end.getTime() - start.getTime()));
+  // Make sure we're working with Date objects
+  const startDate = start instanceof Date ? start : new Date(start);
+  const endDate = end instanceof Date ? end : new Date(end);
+  
+  const date = new Date(startDate.getTime() + Math.random() * (endDate.getTime() - startDate.getTime()));
   return date.toISOString().split('T')[0];
 };
 
@@ -28,8 +32,23 @@ export const generateMockAccounts = (count: number = 20): Account[] => {
     const today = new Date();
     const client = randomItem(clients);
     const project = `${client} ${randomItem(['Transformation', 'Upgrade', 'Implementation', 'Migration'])}`; 
-    const startDate = randomDate(new Date(2023, 0, 1), new Date(2024, 11, 31));
-    const startMonth = new Date(startDate).toLocaleString('default', { month: 'short' }) + ' ' + new Date(startDate).getFullYear();
+    
+    // Ensure we're creating proper Date objects
+    const startDateObj = new Date(2023, 0, 1);
+    const endDateObj = new Date(2024, 11, 31);
+    const startDate = randomDate(startDateObj, endDateObj);
+    const startDateAsDate = new Date(startDate);
+    const startMonth = startDateAsDate.toLocaleString('default', { month: 'short' }) + ' ' + startDateAsDate.getFullYear();
+    
+    // Create proper Date objects for date calculations
+    const revisedStartDateObj = new Date(startDate);
+    revisedStartDateObj.setMonth(revisedStartDateObj.getMonth() + 1);
+    
+    const plannedEndDateStart = new Date(startDate);
+    plannedEndDateStart.setMonth(plannedEndDateStart.getMonth() + 3);
+    
+    const plannedEndDateEnd = new Date(startDate);
+    plannedEndDateEnd.setMonth(plannedEndDateEnd.getMonth() + 12);
     
     accounts.push({
       id: `acc-${i + 1}`,
@@ -39,9 +58,9 @@ export const generateMockAccounts = (count: number = 20): Account[] => {
       vertical: randomItem(verticals),
       geo: randomItem(geos),
       startMonth,
-      revisedStartDate: randomDate(new Date(startDate), new Date(new Date(startDate).setMonth(new Date(startDate).getMonth() + 1))),
+      revisedStartDate: randomDate(new Date(startDate), revisedStartDateObj),
       plannedStartDate: startDate,
-      plannedEndDate: randomDate(new Date(startDate).setMonth(new Date(startDate).getMonth() + 3), new Date(startDate).setMonth(new Date(startDate).getMonth() + 12)),
+      plannedEndDate: randomDate(plannedEndDateStart, plannedEndDateEnd),
       probability: randomItem([10, 20, 30, 50, 70, 90, 100]),
       opportunityStatus: randomItem(opportunityStatuses),
       sowStatus: randomItem(sowStatuses),
