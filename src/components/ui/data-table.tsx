@@ -1,6 +1,21 @@
+
 import React, { useState } from "react";
 import { StatusBadge } from "./status-badge";
 import { cn } from "@/lib/utils";
+import { 
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger 
+} from "@/components/ui/context-menu";
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuTrigger 
+} from "@/components/ui/dropdown-menu";
+import { MoreHorizontal } from "lucide-react";
+import { Button } from "./button";
 
 interface Column<T> {
   header: string;
@@ -151,7 +166,17 @@ export function DataTable<T>({
           {sortedData.map((row) => (
             <tr
               key={String(row[keyField])}
-              onClick={() => onRowClick && onRowClick(row)}
+              onClick={(e) => {
+                // Only trigger row click if not clicking on a button or dropdown
+                if (
+                  e.target instanceof HTMLElement &&
+                  !e.target.closest('button') &&
+                  !e.target.closest('[role="menu"]') &&
+                  onRowClick
+                ) {
+                  onRowClick(row);
+                }
+              }}
               className={onRowClick ? "cursor-pointer" : ""}
             >
               {columns.map((column, index) => (

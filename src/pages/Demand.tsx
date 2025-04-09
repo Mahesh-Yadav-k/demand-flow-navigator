@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { useData } from "@/contexts/DataContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -10,8 +11,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, Filter, Trash, Edit, Eye } from "lucide-react";
+import { Plus, Search, Filter, Trash, Edit, Eye, Copy, MoreHorizontal } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 const DemandPage = () => {
   const { accounts, demands, filterDemands, addDemand, updateDemand, deleteDemand, getAccountById } = useData();
@@ -26,6 +28,7 @@ const DemandPage = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedDemand, setSelectedDemand] = useState<Demand | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [numberOfClones, setNumberOfClones] = useState<number>(1);
   
   // New demand form state
   const [formData, setFormData] = useState<Partial<Demand>>({
@@ -158,15 +161,23 @@ const DemandPage = () => {
     setIsSubmitting(true);
     
     try {
-      const newDemand: Omit<Demand, 'id' | 'sno'> = {
-        ...(formData as any),
-        lastUpdatedBy: user?.name || "Unknown",
-        updatedOn: new Date().toISOString().split('T')[0],
-        addedBy: user?.name || "Unknown",
-        addedOn: new Date().toISOString().split('T')[0],
-      };
+      const clonesToCreate = numberOfClones || 1;
+      const clonePromises = [];
       
-      await addDemand(newDemand);
+      for (let i = 0; i < clonesToCreate; i++) {
+        const newDemand: Omit<Demand, 'id' | 'sno'> = {
+          ...(formData as any),
+          lastUpdatedBy: user?.name || "Unknown",
+          updatedOn: new Date().toISOString().split('T')[0],
+          addedBy: user?.name || "Unknown",
+          addedOn: new Date().toISOString().split('T')[0],
+        };
+        
+        clonePromises.push(addDemand(newDemand));
+      }
+      
+      await Promise.all(clonePromises);
+      
       setIsAddModalOpen(false);
       setFormData({
         accountId: "",
@@ -183,6 +194,7 @@ const DemandPage = () => {
         resourceMapped: "Unassigned",
         comment: "",
       });
+      setNumberOfClones(1);
     } catch (error) {
       console.error("Failed to add demand:", error);
     } finally {
@@ -225,6 +237,30 @@ const DemandPage = () => {
       setSelectedDemand(null);
     } catch (error) {
       console.error("Failed to delete demand:", error);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+  
+  // Clone demand
+  const handleCloneDemand = async (demand: Demand) => {
+    setIsSubmitting(true);
+    
+    try {
+      const cloneDemand: Omit<Demand, 'id' | 'sno'> = {
+        ...demand,
+        lastUpdatedBy: user?.name || "Unknown",
+        updatedOn: new Date().toISOString().split('T')[0],
+        addedBy: user?.name || "Unknown",
+        addedOn: new Date().toISOString().split('T')[0],
+      };
+      
+      delete (cloneDemand as any).id;
+      delete (cloneDemand as any).sno;
+      
+      await addDemand(cloneDemand);
+    } catch (error) {
+      console.error("Failed to clone demand:", error);
     } finally {
       setIsSubmitting(false);
     }
@@ -304,31 +340,44 @@ const DemandPage = () => {
     {
       header: "Actions",
       accessor: (row: Demand) => (
-        <div className="flex space-x-2">
-          <Button variant="ghost" size="icon" onClick={(e) => {
-            e.stopPropagation();
-            handleViewDemand(row);
-          }}>
-            <Eye className="h-4 w-4" />
-          </Button>
-          
-          {hasPermission('canEditDemand') && (
-            <Button variant="ghost" size="icon" onClick={(e) => {
-              e.stopPropagation();
-              handleEditDemand(row);
-            }}>
-              <Edit className="h-4 w-4" />
-            </Button>
-          )}
-          
-          {hasPermission('canDeleteDemand') && (
-            <Button variant="ghost" size="icon" onClick={(e) => {
-              e.stopPropagation();
-              handleDeleteDemand(row);
-            }}>
-              <Trash className="h-4 w-4" />
-            </Button>
-          )}
+        <div className="flex items-center justify-end">
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleViewDemand(row)}>
+                <Eye className="mr-2 h-4 w-4" />
+                View
+              </DropdownMenuItem>
+              
+              {hasPermission('canEditDemand') && (
+                <DropdownMenuItem onClick={() => handleEditDemand(row)}>
+                  <Edit className="mr-2 h-4 w-4" />
+                  Edit
+                </DropdownMenuItem>
+              )}
+              
+              {(hasPermission('canCloneDemand') || user?.role === 'Admin' || user?.role === 'Client Partner') && (
+                <DropdownMenuItem onClick={() => handleCloneDemand(row)}>
+                  <Copy className="mr-2 h-4 w-4" />
+                  Clone
+                </DropdownMenuItem>
+              )}
+              
+              {hasPermission('canDeleteDemand') && (
+                <DropdownMenuItem 
+                  className="text-destructive"
+                  onClick={() => handleDeleteDemand(row)}
+                >
+                  <Trash className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       ),
     },
@@ -596,6 +645,22 @@ const DemandPage = () => {
             </Select>
           </div>
           
+          <div className="space-y-2">
+            <Label htmlFor="numberOfClones">Number of Clones</Label>
+            <Input
+              id="numberOfClones"
+              name="numberOfClones"
+              type="number"
+              min="1"
+              max="20"
+              value={numberOfClones}
+              onChange={(e) => setNumberOfClones(parseInt(e.target.value) || 1)}
+            />
+            <p className="text-xs text-muted-foreground">
+              Number of identical demands to create (includes this one)
+            </p>
+          </div>
+          
           <div className="space-y-2 md:col-span-2">
             <Label htmlFor="comment">Comment</Label>
             <Textarea
@@ -693,8 +758,8 @@ const DemandPage = () => {
                 <span>Last updated by {selectedDemand.lastUpdatedBy} on {selectedDemand.updatedOn}</span>
               </div>
               
-              {hasPermission('canEditDemand') && (
-                <div className="flex justify-end gap-2">
+              <div className="flex justify-end gap-2">
+                {hasPermission('canEditDemand') && (
                   <Button
                     onClick={() => {
                       setIsViewModalOpen(false);
@@ -704,8 +769,21 @@ const DemandPage = () => {
                     <Edit className="mr-2 h-4 w-4" />
                     Edit Demand
                   </Button>
-                </div>
-              )}
+                )}
+                
+                {(hasPermission('canCloneDemand') || user?.role === 'Admin' || user?.role === 'Client Partner') && (
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsViewModalOpen(false);
+                      handleCloneDemand(selectedDemand);
+                    }}
+                  >
+                    <Copy className="mr-2 h-4 w-4" />
+                    Clone Demand
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         )}

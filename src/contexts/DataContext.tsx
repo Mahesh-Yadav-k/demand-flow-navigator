@@ -173,7 +173,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       const newDemand: Demand = {
         ...demandData,
-        id: `dem-${demands.length + 1}`,
+        id: `dem-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
         sno: demands.length + 1,
       };
       

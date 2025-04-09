@@ -19,6 +19,7 @@ export type RolePermissions = {
   canEditDemand: boolean;
   canDeleteDemand: boolean;
   canAddDemand: boolean;
+  canCloneDemand: boolean;
 };
 
 export type Account = {
