@@ -24,6 +24,14 @@ interface Column<T> {
   className?: string;
 }
 
+interface ActionMenuItem<T> {
+  label: string;
+  onClick: (row: T) => void;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  showIf?: (row: T) => boolean;
+}
+
 interface DataTableProps<T> {
   data: T[];
   columns: Column<T>[];
@@ -32,6 +40,8 @@ interface DataTableProps<T> {
   emptyMessage?: string;
   isLoading?: boolean;
   className?: string;
+  actionMenuItems?: ActionMenuItem<T>[];
+  showActionMenu?: boolean;
 }
 
 export function DataTable<T>({
@@ -42,6 +52,8 @@ export function DataTable<T>({
   emptyMessage = "No data available",
   isLoading = false,
   className,
+  actionMenuItems = [],
+  showActionMenu = false,
 }: DataTableProps<T>) {
   const [sortField, setSortField] = useState<keyof T | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -132,20 +144,56 @@ export function DataTable<T>({
     return value !== null && value !== undefined ? String(value) : "";
   };
 
+  // Add action column if actions are provided
+  const columnsWithActions = showActionMenu && actionMenuItems.length > 0
+    ? [...columns, {
+        header: "",
+        accessor: "_actions" as keyof T,
+        cell: (_, row) => (
+          <div className="flex justify-end" onClick={(e) => e.stopPropagation()}>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 p-0">
+                  <MoreHorizontal className="h-4 w-4" />
+                  <span className="sr-only">Open menu</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-background">
+                {actionMenuItems
+                  .filter(item => !item.showIf || item.showIf(row))
+                  .map((item, i) => (
+                    <DropdownMenuItem
+                      key={i}
+                      onClick={() => item.onClick(row)}
+                      disabled={item.disabled}
+                      className="cursor-pointer"
+                    >
+                      {item.icon && <span className="mr-2">{item.icon}</span>}
+                      {item.label}
+                    </DropdownMenuItem>
+                  ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+        ),
+        className: "w-10",
+      }]
+    : columns;
+
   return (
     <div className={cn("w-full overflow-auto", className)}>
       <table className="data-table">
         <thead>
           <tr>
-            {columns.map((column, index) => (
+            {columnsWithActions.map((column, index) => (
               <th
                 key={index}
                 className={cn(
-                  typeof column.accessor === "string" ? "cursor-pointer" : "",
+                  typeof column.accessor === "string" && column.accessor !== "_actions" ? "cursor-pointer" : "",
                   column.className
                 )}
                 onClick={() => {
-                  if (typeof column.accessor === "string") {
+                  if (typeof column.accessor === "string" && column.accessor !== "_actions") {
                     handleSort(column.accessor as keyof T);
                   }
                 }}
@@ -179,7 +227,7 @@ export function DataTable<T>({
               }}
               className={onRowClick ? "cursor-pointer" : ""}
             >
-              {columns.map((column, index) => (
+              {columnsWithActions.map((column, index) => (
                 <td key={index} className={column.className}>
                   {renderCellContent(column, row)}
                 </td>

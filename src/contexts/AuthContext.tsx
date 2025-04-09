@@ -15,6 +15,7 @@ const rolePermissions: Record<Role, RolePermissions> = {
     canEditDemand: true,
     canDeleteDemand: true,
     canAddDemand: true,
+    canCloneDemand: true,
   },
   'Client Partner': {
     canViewDashboard: true,
@@ -26,6 +27,7 @@ const rolePermissions: Record<Role, RolePermissions> = {
     canEditDemand: true,
     canDeleteDemand: false,
     canAddDemand: true,
+    canCloneDemand: true,
   },
   'Delivery Partner': {
     canViewDashboard: true,
@@ -37,6 +39,7 @@ const rolePermissions: Record<Role, RolePermissions> = {
     canEditDemand: true,
     canDeleteDemand: false,
     canAddDemand: false,
+    canCloneDemand: false,
   },
   'Read-Only': {
     canViewDashboard: true,
@@ -48,6 +51,7 @@ const rolePermissions: Record<Role, RolePermissions> = {
     canEditDemand: false,
     canDeleteDemand: false,
     canAddDemand: false,
+    canCloneDemand: false,
   },
 };
 

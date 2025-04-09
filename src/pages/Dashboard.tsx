@@ -10,12 +10,16 @@ import { Users, DollarSign, BarChart as BarChartIcon, PieChart as PieChartIcon }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const Dashboard = () => {
   const { accounts, demands, dashboardKPIs, filterDashboardData, filterDemands } = useData();
   const [filters, setFilters] = useState<DashboardFilters>({});
   const [pivotView, setPivotView] = useState<"role" | "account" | "both">("role");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
+  const [selectedStatus, setSelectedStatus] = useState<string>("");
+  const [roleFilter, setRoleFilter] = useState<(string | number)[]>([]);
+  const [accountFilter, setAccountFilter] = useState<(string | number)[]>([]);
   
   // Calculate filtered KPIs based on current filters
   const filteredKPIs = filterDashboardData(filters);
@@ -41,15 +45,22 @@ const Dashboard = () => {
     value: status,
   }));
   
-  const roleCodeOptions = [...new Set(demands.map(demand => demand.roleCode))].map(code => ({
-    label: code,
-    value: code,
+  const roleCodeOptions = [...new Set(demands.map(demand => demand.roleCode))].filter(Boolean).map(code => ({
+    label: code || "Unknown",
+    value: code || "",
   }));
   
-  const accountOptions = [...new Set(accounts.map(account => account.client))].map(client => ({
-    label: client,
-    value: client,
+  const accountOptions = [...new Set(accounts.map(account => account.client))].filter(Boolean).map(client => ({
+    label: client || "Unknown",
+    value: client || "",
   }));
+
+  const statusOptions = [
+    { label: "Open", value: "Open" },
+    { label: "In Progress", value: "In Progress" },
+    { label: "Fulfilled", value: "Fulfilled" },
+    { label: "Cancelled", value: "Cancelled" }
+  ];
   
   // Handle filter changes
   const handleFilterChange = (filterName: keyof DashboardFilters, values: (string | number)[]) => {
@@ -96,14 +107,33 @@ const Dashboard = () => {
   const generateDemandPivotData = () => {
     let filteredDemandsData = filterDemands({});
     
+    // Apply role code filter
+    if (roleFilter && roleFilter.length > 0) {
+      filteredDemandsData = filteredDemandsData.filter(d => roleFilter.includes(d.roleCode));
+    }
+    
+    // Apply account filter
+    if (accountFilter && accountFilter.length > 0) {
+      filteredDemandsData = filteredDemandsData.filter(d => {
+        const account = accounts.find(a => a.id === d.accountId);
+        return account && accountFilter.includes(account.client);
+      });
+    }
+    
+    // Apply month filter
     if (selectedMonth) {
       filteredDemandsData = filteredDemandsData.filter(d => d.startMonth === selectedMonth);
+    }
+    
+    // Apply status filter
+    if (selectedStatus) {
+      filteredDemandsData = filteredDemandsData.filter(d => d.status === selectedStatus);
     }
     
     if (pivotView === "role") {
       // Group by role code
       const demandsByRoleCode = filteredDemandsData.reduce((acc, demand) => {
-        const key = demand.roleCode;
+        const key = demand.roleCode || "Unknown";
         if (!acc[key]) {
           acc[key] = [];
         }
@@ -111,13 +141,36 @@ const Dashboard = () => {
         return acc;
       }, {} as Record<string, Demand[]>);
       
-      return Object.entries(demandsByRoleCode).map(([roleCode, demands]) => ({
-        name: roleCode,
-        count: demands.length,
-        open: demands.filter(d => d.status === "Open").length,
-        inProgress: demands.filter(d => d.status === "In Progress").length,
-        fulfilled: demands.filter(d => d.status === "Fulfilled").length,
-      }));
+      // Create pivot data by month
+      return Object.entries(demandsByRoleCode).map(([roleCode, demands]) => {
+        // Group by months
+        const monthGroups = demands.reduce((acc, demand) => {
+          const month = demand.startMonth || "Unknown";
+          if (!acc[month]) {
+            acc[month] = [];
+          }
+          acc[month].push(demand);
+          return acc;
+        }, {} as Record<string, Demand[]>);
+        
+        // Create the data object
+        const dataObj: any = {
+          name: roleCode,
+          count: demands.length,
+        };
+        
+        // Add counts for each month
+        Object.entries(monthGroups).forEach(([month, monthDemands]) => {
+          dataObj[month] = monthDemands.length;
+        });
+        
+        // Add status counts for filter display
+        dataObj.open = demands.filter(d => d.status === "Open").length;
+        dataObj.inProgress = demands.filter(d => d.status === "In Progress").length;
+        dataObj.fulfilled = demands.filter(d => d.status === "Fulfilled").length;
+        
+        return dataObj;
+      });
     } else if (pivotView === "account") {
       // Group by account
       const demandsByAccount = filteredDemandsData.reduce((acc, demand) => {
@@ -130,13 +183,36 @@ const Dashboard = () => {
         return acc;
       }, {} as Record<string, Demand[]>);
       
-      return Object.entries(demandsByAccount).map(([account, demands]) => ({
-        name: account,
-        count: demands.length,
-        open: demands.filter(d => d.status === "Open").length,
-        inProgress: demands.filter(d => d.status === "In Progress").length,
-        fulfilled: demands.filter(d => d.status === "Fulfilled").length,
-      }));
+      // Create pivot data by month
+      return Object.entries(demandsByAccount).map(([account, demands]) => {
+        // Group by months
+        const monthGroups = demands.reduce((acc, demand) => {
+          const month = demand.startMonth || "Unknown";
+          if (!acc[month]) {
+            acc[month] = [];
+          }
+          acc[month].push(demand);
+          return acc;
+        }, {} as Record<string, Demand[]>);
+        
+        // Create the data object
+        const dataObj: any = {
+          name: account,
+          count: demands.length,
+        };
+        
+        // Add counts for each month
+        Object.entries(monthGroups).forEach(([month, monthDemands]) => {
+          dataObj[month] = monthDemands.length;
+        });
+        
+        // Add status counts
+        dataObj.open = demands.filter(d => d.status === "Open").length;
+        dataObj.inProgress = demands.filter(d => d.status === "In Progress").length;
+        dataObj.fulfilled = demands.filter(d => d.status === "Fulfilled").length;
+        
+        return dataObj;
+      });
     } else {
       // Create a matrix of role code × account
       const pivotMatrix: Record<string, Record<string, number>> = {};
@@ -144,7 +220,7 @@ const Dashboard = () => {
       filteredDemandsData.forEach(demand => {
         const account = accounts.find(a => a.id === demand.accountId);
         const accountName = account ? account.client : "Unknown";
-        const roleCode = demand.roleCode;
+        const roleCode = demand.roleCode || "Unknown";
         
         if (!pivotMatrix[roleCode]) {
           pivotMatrix[roleCode] = {};
@@ -175,12 +251,16 @@ const Dashboard = () => {
   };
   
   const pivotData = generateDemandPivotData();
+  
+  // Get all months from demands for pivot columns
+  const allMonths = [...new Set(demands.map(d => d.startMonth).filter(Boolean))];
+  
   const pivotColumns = pivotView === "both" 
     ? ["name", ...new Set(demands.map(d => {
         const account = accounts.find(a => a.id === d.accountId);
         return account ? account.client : "Unknown";
       })), "total"]
-    : ["name", "count", "open", "inProgress", "fulfilled"];
+    : ["name", "count", ...allMonths];
   
   return (
     <div className="space-y-6">
@@ -362,7 +442,7 @@ const Dashboard = () => {
         </TabsContent>
         
         <TabsContent value="demands" className="space-y-6">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 flex-wrap">
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium">View By:</span>
               <Select value={pivotView} onValueChange={(value) => setPivotView(value as any)}>
@@ -386,25 +466,48 @@ const Dashboard = () => {
                 <SelectContent>
                   <SelectItem value="">All months</SelectItem>
                   {startMonthOptions.map(option => (
-                    <SelectItem key={option.value} value={option.value}>{option.label}</SelectItem>
+                    <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             
             <div className="flex items-center gap-2">
+              <span className="text-sm font-medium">Status:</span>
+              <Select value={selectedStatus} onValueChange={setSelectedStatus}>
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">All statuses</SelectItem>
+                  {statusOptions.map(option => (
+                    <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
               <FilterDropdown
                 label="Role Code"
                 options={roleCodeOptions}
-                selectedValues={[]}
-                onChange={() => {}}
+                selectedValues={roleFilter}
+                onChange={setRoleFilter}
               />
               
               <FilterDropdown
                 label="Account"
                 options={accountOptions}
-                selectedValues={[]}
-                onChange={() => {}}
+                selectedValues={accountFilter}
+                onChange={setAccountFilter}
+              />
+
+              <FilterDropdown
+                label="Start Month"
+                options={startMonthOptions}
+                selectedValues={selectedMonth ? [selectedMonth] : []}
+                onChange={(values) => setSelectedMonth(values.length > 0 ? String(values[0]) : "")}
+                disabled={!!selectedMonth}
               />
             </div>
           </div>
@@ -429,9 +532,6 @@ const Dashboard = () => {
                           {column === "name" 
                             ? (pivotView === "role" ? "Role Code" : pivotView === "account" ? "Account" : "Role Code") 
                             : column === "count" ? "Total" 
-                            : column === "open" ? "Open" 
-                            : column === "inProgress" ? "In Progress" 
-                            : column === "fulfilled" ? "Fulfilled" 
                             : column === "total" ? "Total" 
                             : column}
                         </TableHead>
@@ -443,7 +543,7 @@ const Dashboard = () => {
                       <TableRow key={i}>
                         {pivotColumns.map((column, j) => (
                           <TableCell key={j} className={column === "name" ? "font-medium" : ""}>
-                            {row[column]}
+                            {row[column] !== undefined ? row[column] : 0}
                           </TableCell>
                         ))}
                       </TableRow>
@@ -474,13 +574,9 @@ const Dashboard = () => {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      {pivotView !== "both" && (
-                        <>
-                          <Bar dataKey="open" fill="#f59e0b" name="Open" />
-                          <Bar dataKey="inProgress" fill="#3b82f6" name="In Progress" />
-                          <Bar dataKey="fulfilled" fill="#10b981" name="Fulfilled" />
-                        </>
-                      )}
+                      {pivotView !== "both" && allMonths.slice(0, 3).map((month, index) => (
+                        <Bar key={month} dataKey={month} fill={COLORS[index % COLORS.length]} name={month} />
+                      ))}
                       {pivotView === "both" && (
                         <Bar dataKey="total" fill="#8b5cf6" name="Total" />
                       )}

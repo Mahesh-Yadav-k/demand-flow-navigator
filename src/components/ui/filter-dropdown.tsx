@@ -22,6 +22,7 @@ interface FilterDropdownProps {
   selectedValues: (string | number)[];
   onChange: (values: (string | number)[]) => void;
   maxHeight?: string;
+  disabled?: boolean;
 }
 
 export function FilterDropdown({
@@ -30,6 +31,7 @@ export function FilterDropdown({
   selectedValues,
   onChange,
   maxHeight = "300px",
+  disabled = false,
 }: FilterDropdownProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [localSelected, setLocalSelected] = useState<(string | number)[]>([]);
@@ -42,7 +44,7 @@ export function FilterDropdown({
   );
   
   useEffect(() => {
-    setLocalSelected(selectedValues);
+    setLocalSelected(selectedValues || []);
   }, [selectedValues]);
 
   const handleSelectAll = () => {
@@ -71,7 +73,7 @@ export function FilterDropdown({
   };
 
   const isAllSelected = localSelected.length === validOptions.length && validOptions.length > 0;
-  const isFiltered = selectedValues.length > 0;
+  const isFiltered = selectedValues && selectedValues.length > 0;
 
   if (validOptions.length === 0) {
     return null; // Don't render the dropdown if there are no valid options
@@ -84,6 +86,7 @@ export function FilterDropdown({
           variant="outline" 
           size="sm"
           className={`flex items-center gap-2 ${isFiltered ? 'bg-primary/10' : ''}`}
+          disabled={disabled}
         >
           <Filter className="h-4 w-4" />
           <span>{label}</span>
@@ -94,7 +97,7 @@ export function FilterDropdown({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-56 p-0" align="start">
+      <PopoverContent className="w-56 p-0 z-50 bg-background" align="start">
         <div className="p-3 flex justify-between items-center">
           <h4 className="font-medium text-sm">Filter by {label}</h4>
           <Button 
