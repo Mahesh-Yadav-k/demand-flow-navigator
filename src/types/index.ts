@@ -88,6 +88,8 @@ export type AccountFilters = {
   probability?: number[];
   vertical?: string[];
   startMonth?: string[];
+  sowStatus?: SOWStatus[];
+  account?: string[];
 };
 
 export type DemandFilters = {
@@ -96,6 +98,7 @@ export type DemandFilters = {
   probability?: number[];
   status?: DemandStatus[];
   startMonth?: string[];
+  account?: string[];
 };
 
 export type DashboardKPIs = {

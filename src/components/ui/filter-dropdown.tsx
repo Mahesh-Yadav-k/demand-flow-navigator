@@ -34,15 +34,22 @@ export function FilterDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const [localSelected, setLocalSelected] = useState<(string | number)[]>([]);
   
+  // Filter out options with empty values
+  const validOptions = options.filter(option => 
+    option.value !== undefined && 
+    option.value !== null && 
+    option.value !== ""
+  );
+  
   useEffect(() => {
     setLocalSelected(selectedValues);
   }, [selectedValues]);
 
   const handleSelectAll = () => {
-    if (localSelected.length === options.length) {
+    if (localSelected.length === validOptions.length) {
       setLocalSelected([]);
     } else {
-      setLocalSelected(options.map(option => option.value));
+      setLocalSelected(validOptions.map(option => option.value));
     }
   };
 
@@ -63,8 +70,12 @@ export function FilterDropdown({
     setLocalSelected([]);
   };
 
-  const isAllSelected = localSelected.length === options.length;
+  const isAllSelected = localSelected.length === validOptions.length && validOptions.length > 0;
   const isFiltered = selectedValues.length > 0;
+
+  if (validOptions.length === 0) {
+    return null; // Don't render the dropdown if there are no valid options
+  }
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -96,10 +107,10 @@ export function FilterDropdown({
           </Button>
         </div>
         <Separator />
-        <ScrollArea className={`p-3 max-h-[${maxHeight}]`}>
+        <ScrollArea className="p-3" style={{ maxHeight }}>
           <div className="space-y-2">
-            {options.map((option) => (
-              <div key={option.value} className="flex items-center space-x-2">
+            {validOptions.map((option) => (
+              <div key={String(option.value)} className="flex items-center space-x-2">
                 <Checkbox
                   id={`${label}-${option.value}`}
                   checked={localSelected.includes(option.value)}

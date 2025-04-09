@@ -84,6 +84,11 @@ const AccountsPage = () => {
     label: month,
     value: month,
   }));
+
+  const accountOptions = [...new Set(accounts.map(account => account.client))].map(client => ({
+    label: client,
+    value: client,
+  }));
   
   // Handle filter changes
   const handleFilterChange = (filterName: keyof AccountFilters, values: (string | number)[]) => {
@@ -285,7 +290,7 @@ const AccountsPage = () => {
             <Eye className="h-4 w-4" />
           </Button>
           
-          {hasPermission('canEditAccount') && (
+          {hasPermission('canEditAccounts') && (
             <Button variant="ghost" size="icon" onClick={(e) => {
               e.stopPropagation();
               handleEditAccount(row);
@@ -294,7 +299,7 @@ const AccountsPage = () => {
             </Button>
           )}
           
-          {hasPermission('canDeleteAccount') && (
+          {hasPermission('canDeleteAccounts') && (
             <Button variant="ghost" size="icon" onClick={(e) => {
               e.stopPropagation();
               handleDeleteAccount(row);
@@ -312,7 +317,7 @@ const AccountsPage = () => {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <h1 className="text-2xl font-bold">Account Management</h1>
         
-        {hasPermission('canAddAccount') && (
+        {hasPermission('canAddAccounts') && (
           <Button onClick={() => setIsAddModalOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Add Account
@@ -373,6 +378,12 @@ const AccountsPage = () => {
             options={probabilityOptions}
             selectedValues={filters.probability || []}
             onChange={(values) => handleFilterChange('probability', values)}
+          />
+          <FilterDropdown
+            label="Account"
+            options={accountOptions}
+            selectedValues={filters.account || []}
+            onChange={(values) => handleFilterChange('account', values)}
           />
         </div>
       </div>
