@@ -1,21 +1,14 @@
-
 import React, { useState } from "react";
 import { StatusBadge } from "./status-badge";
 import { cn } from "@/lib/utils";
-import { 
-  ContextMenu,
-  ContextMenuContent,
-  ContextMenuItem,
-  ContextMenuTrigger 
-} from "@/components/ui/context-menu";
 import { 
   DropdownMenu, 
   DropdownMenuContent, 
   DropdownMenuItem, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
 import { Button } from "./button";
+import { MoreHorizontal, FileSpreadsheet } from "lucide-react";
 
 interface Column<T> {
   header: string;
@@ -42,6 +35,7 @@ interface DataTableProps<T> {
   className?: string;
   actionMenuItems?: ActionMenuItem<T>[];
   showActionMenu?: boolean;
+  onExportExcel?: () => void;
 }
 
 export function DataTable<T>({
@@ -54,6 +48,7 @@ export function DataTable<T>({
   className,
   actionMenuItems = [],
   showActionMenu = false,
+  onExportExcel,
 }: DataTableProps<T>) {
   const [sortField, setSortField] = useState<keyof T | null>(null);
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -181,61 +176,77 @@ export function DataTable<T>({
     : columns;
 
   return (
-    <div className={cn("w-full overflow-auto", className)}>
-      <table className="data-table">
-        <thead>
-          <tr>
-            {columnsWithActions.map((column, index) => (
-              <th
-                key={index}
-                className={cn(
-                  typeof column.accessor === "string" && column.accessor !== "_actions" ? "cursor-pointer" : "",
-                  column.className
-                )}
-                onClick={() => {
-                  if (typeof column.accessor === "string" && column.accessor !== "_actions") {
-                    handleSort(column.accessor as keyof T);
-                  }
-                }}
-              >
-                <div className="flex items-center space-x-1">
-                  <span>{column.header}</span>
-                  {sortField === column.accessor && (
-                    <span>
-                      {sortDirection === "asc" ? " ↑" : " ↓"}
-                    </span>
-                  )}
-                </div>
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {sortedData.map((row) => (
-            <tr
-              key={String(row[keyField])}
-              onClick={(e) => {
-                // Only trigger row click if not clicking on a button or dropdown
-                if (
-                  e.target instanceof HTMLElement &&
-                  !e.target.closest('button') &&
-                  !e.target.closest('[role="menu"]') &&
-                  onRowClick
-                ) {
-                  onRowClick(row);
-                }
-              }}
-              className={onRowClick ? "cursor-pointer" : ""}
-            >
+    <div className="space-y-2">
+      {onExportExcel && (
+        <div className="flex justify-end mb-2">
+          <Button 
+            variant="outline" 
+            size="sm"
+            onClick={onExportExcel}
+            className="flex items-center gap-2"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+            <span>Download as Excel</span>
+          </Button>
+        </div>
+      )}
+      
+      <div className={cn("w-full overflow-auto", className)}>
+        <table className="data-table">
+          <thead>
+            <tr>
               {columnsWithActions.map((column, index) => (
-                <td key={index} className={column.className}>
-                  {renderCellContent(column, row)}
-                </td>
+                <th
+                  key={index}
+                  className={cn(
+                    typeof column.accessor === "string" && column.accessor !== "_actions" ? "cursor-pointer" : "",
+                    column.className
+                  )}
+                  onClick={() => {
+                    if (typeof column.accessor === "string" && column.accessor !== "_actions") {
+                      handleSort(column.accessor as keyof T);
+                    }
+                  }}
+                >
+                  <div className="flex items-center space-x-1">
+                    <span>{column.header}</span>
+                    {sortField === column.accessor && (
+                      <span>
+                        {sortDirection === "asc" ? " ↑" : " ↓"}
+                      </span>
+                    )}
+                  </div>
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sortedData.map((row) => (
+              <tr
+                key={String(row[keyField])}
+                onClick={(e) => {
+                  // Only trigger row click if not clicking on a button or dropdown
+                  if (
+                    e.target instanceof HTMLElement &&
+                    !e.target.closest('button') &&
+                    !e.target.closest('[role="menu"]') &&
+                    onRowClick
+                  ) {
+                    onRowClick(row);
+                  }
+                }}
+                className={onRowClick ? "cursor-pointer" : ""}
+              >
+                {columnsWithActions.map((column, index) => (
+                  <td key={index} className={column.className}>
+                    {renderCellContent(column, row)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

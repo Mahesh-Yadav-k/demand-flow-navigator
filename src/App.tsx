@@ -14,7 +14,14 @@ import Analytics from "./pages/Analytics";
 import Login from "./pages/login";
 import NotFound from "./pages/NotFound";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      refetchOnWindowFocus: false,
+      retry: 1,
+    },
+  },
+});
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -25,7 +32,7 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <Routes>
-              <Route path="/login" element={<Login />} />
+              <Route path="/login" element={<Navigate to="/" replace />} />
               
               <Route element={<AppShell />}>
                 <Route path="/" element={<Dashboard />} />
