@@ -6,6 +6,7 @@ import { FilterDropdown } from "@/components/ui/filter-dropdown";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ExportButton } from "@/components/demands/ExportButton";
 
 interface PivotViewProps {
   showDemandStatusFilter?: boolean;
@@ -13,7 +14,6 @@ interface PivotViewProps {
 
 export const PivotView = ({ showDemandStatusFilter = false }: PivotViewProps) => {
   const { accounts, demands, filterDemands } = useData();
-  const [pivotView, setPivotView] = useState<"role" | "account" | "both">("both");
   const [selectedMonth, setSelectedMonth] = useState<string>("");
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [roleFilter, setRoleFilter] = useState<(string | number)[]>([]);
@@ -68,124 +68,75 @@ export const PivotView = ({ showDemandStatusFilter = false }: PivotViewProps) =>
     filteredDemandsData = filteredDemandsData.filter(d => d.status === selectedStatus);
   }
   
-  // Get all months for pivot columns
+  // Get all months for pivot columns (sorted chronologically)
   const allMonths = [...new Set(demands.map(d => d.startMonth).filter(Boolean))].sort();
   
   // Generate Account × Role × Month pivot data
   const generatePivotData = () => {
     // First group by account
-    const demandsByAccount = filteredDemandsData.reduce((acc, demand) => {
+    const accountGroups = filteredDemandsData.reduce((acc, demand) => {
       const account = accounts.find(a => a.id === demand.accountId);
       const accountName = account ? account.client : "Unknown";
       
       if (!acc[accountName]) {
-        acc[accountName] = {};
+        acc[accountName] = [];
       }
       
-      const roleCode = demand.roleCode || "Unknown";
-      if (!acc[accountName][roleCode]) {
-        acc[accountName][roleCode] = {};
-      }
-      
-      const month = demand.startMonth || "Unknown";
-      if (!acc[accountName][roleCode][month]) {
-        acc[accountName][roleCode][month] = 0;
-      }
-      
-      acc[accountName][roleCode][month]++;
+      acc[accountName].push(demand);
       return acc;
-    }, {} as Record<string, Record<string, Record<string, number>>>);
+    }, {} as Record<string, Demand[]>);
     
-    // Transform to table structure
-    const pivotData = Object.keys(demandsByAccount).map(account => {
-      const row: Record<string, any> = { name: account };
-      
-      // Add role columns for each account
-      const roleTotals: Record<string, number> = {};
-      
-      Object.keys(demandsByAccount[account]).forEach(role => {
-        const roleMonths = demandsByAccount[account][role];
+    // Process data for each account
+    return Object.entries(accountGroups).map(([accountName, accountDemands]) => {
+      // For each account, group demands by role code
+      const roleGroups = accountDemands.reduce((acc, demand) => {
+        const roleCode = demand.roleCode || "Unknown";
         
-        // Create a column for each role+month combination
-        Object.keys(roleMonths).forEach(month => {
-          const count = roleMonths[month];
-          const columnKey = `${role}__${month}`;
-          row[columnKey] = count;
-          
-          // Track role totals
-          if (!roleTotals[role]) {
-            roleTotals[role] = 0;
+        if (!acc[roleCode]) {
+          acc[roleCode] = [];
+        }
+        
+        acc[roleCode].push(demand);
+        return acc;
+      }, {} as Record<string, Demand[]>);
+      
+      // For each role code, count demands by month
+      const roleData: Record<string, Record<string, number>> = {};
+      let accountTotal = 0;
+      
+      Object.entries(roleGroups).forEach(([roleCode, roleDemands]) => {
+        roleData[roleCode] = {
+          total: roleDemands.length
+        };
+        accountTotal += roleDemands.length;
+        
+        // Count by month
+        roleDemands.forEach(demand => {
+          const month = demand.startMonth || "Unknown";
+          if (!roleData[roleCode][month]) {
+            roleData[roleCode][month] = 0;
           }
-          roleTotals[role] += count;
+          roleData[roleCode][month]++;
         });
-        
-        // Add role total
-        row[`${role}__total`] = roleTotals[role];
       });
       
-      // Calculate account total
-      row.total = Object.values(roleTotals).reduce((sum, count) => sum + count, 0);
-      
-      return row;
+      return {
+        accountName,
+        roles: roleData,
+        total: accountTotal
+      };
     });
-    
-    return pivotData;
   };
   
   const pivotData = generatePivotData();
   
-  // Generate column headers structure for the matrix
-  const generateColumnHeaders = () => {
-    const uniqueRoles = [...new Set(filteredDemandsData.map(d => d.roleCode || "Unknown"))];
-    
-    // Group headers by role and months
-    return uniqueRoles.map(role => ({
-      role,
-      months: allMonths.map(month => ({
-        month,
-        key: `${role}__${month}`
-      })),
-      totalKey: `${role}__total`
-    }));
-  };
-  
-  const columnHeaders = generateColumnHeaders();
+  // Get unique role codes from all demands for column headers
+  const uniqueRoleCodes = [...new Set(filteredDemandsData.map(d => d.roleCode || "Unknown"))].sort();
   
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-medium">View By:</span>
-          <Select value={pivotView} onValueChange={(value) => setPivotView(value as any)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue placeholder="Select view" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="role">Role Code</SelectItem>
-              <SelectItem value="account">Account</SelectItem>
-              <SelectItem value="both">Accounts × Roles × Months</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        
-        {showDemandStatusFilter && (
-          <div className="flex items-center gap-2">
-            <span className="text-sm font-medium">Status:</span>
-            <Select value={selectedStatus} onValueChange={setSelectedStatus}>
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder="All statuses" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="">All statuses</SelectItem>
-                {statusOptions.map(option => (
-                  <SelectItem key={option.value} value={String(option.value)}>{option.label}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        )}
-        
-        <div className="flex flex-wrap gap-2 mt-2 sm:mt-0">
+        <div className="flex flex-wrap gap-2">
           <FilterDropdown
             label="Role Code"
             options={roleCodeOptions}
@@ -216,6 +167,18 @@ export const PivotView = ({ showDemandStatusFilter = false }: PivotViewProps) =>
             />
           )}
         </div>
+        
+        <div className="ml-auto">
+          <ExportButton 
+            filteredDemands={filteredDemandsData} 
+            filters={{ 
+              role: roleFilter as string[], 
+              status: selectedStatus ? [selectedStatus] as any : undefined,
+              startMonth: selectedMonth ? [selectedMonth] : undefined,
+              account: accountFilter as string[]
+            }} 
+          />
+        </div>
       </div>
       
       <Card>
@@ -233,13 +196,13 @@ export const PivotView = ({ showDemandStatusFilter = false }: PivotViewProps) =>
                     Account
                   </TableHead>
                   
-                  {columnHeaders.map((roleGroup, i) => (
+                  {uniqueRoleCodes.map((roleCode) => (
                     <TableHead 
-                      key={`role-${i}`} 
-                      colSpan={roleGroup.months.length + 1} 
+                      key={`role-${roleCode}`} 
+                      colSpan={allMonths.length + 1} 
                       className="text-center border-x"
                     >
-                      {roleGroup.role}
+                      {roleCode}
                     </TableHead>
                   ))}
                   
@@ -249,11 +212,11 @@ export const PivotView = ({ showDemandStatusFilter = false }: PivotViewProps) =>
                 </TableRow>
                 
                 <TableRow>
-                  {columnHeaders.map(roleGroup => (
+                  {uniqueRoleCodes.map(roleCode => (
                     <>
-                      {roleGroup.months.map((monthData, j) => (
-                        <TableHead key={`${roleGroup.role}-${monthData.month}`} className="text-center text-xs p-1">
-                          {monthData.month}
+                      {allMonths.map((month) => (
+                        <TableHead key={`${roleCode}-${month}`} className="text-center text-xs p-1">
+                          {month}
                         </TableHead>
                       ))}
                       <TableHead className="text-center bg-muted/30 border-l text-xs p-1">
@@ -265,27 +228,27 @@ export const PivotView = ({ showDemandStatusFilter = false }: PivotViewProps) =>
               </TableHeader>
               
               <TableBody>
-                {pivotData.map((row, i) => (
-                  <TableRow key={i}>
+                {pivotData.map((accountData, index) => (
+                  <TableRow key={`account-${index}`}>
                     <TableCell className="font-medium sticky left-0 bg-background">
-                      {row.name}
+                      {accountData.accountName}
                     </TableCell>
                     
-                    {columnHeaders.map(roleGroup => (
+                    {uniqueRoleCodes.map(roleCode => (
                       <>
-                        {roleGroup.months.map((monthData) => (
-                          <TableCell key={monthData.key} className="text-center p-1">
-                            {row[monthData.key] || 0}
+                        {allMonths.map((month) => (
+                          <TableCell key={`${accountData.accountName}-${roleCode}-${month}`} className="text-center p-1">
+                            {accountData.roles[roleCode]?.[month] || 0}
                           </TableCell>
                         ))}
                         <TableCell className="text-center font-medium bg-muted/30 border-l p-1">
-                          {row[roleGroup.totalKey] || 0}
+                          {accountData.roles[roleCode]?.total || 0}
                         </TableCell>
                       </>
                     ))}
                     
                     <TableCell className="text-center font-bold bg-muted/20">
-                      {row.total || 0}
+                      {accountData.total}
                     </TableCell>
                   </TableRow>
                 ))}
