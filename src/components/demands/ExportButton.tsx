@@ -14,17 +14,20 @@ export function ExportButton({ filteredDemands, filters }: ExportButtonProps) {
     // Create a cleaner version of the data for export
     const exportData = filteredDemands.map(demand => ({
       "ID": demand.id,
-      "Account": demand.accountName || "",
+      "Account ID": demand.accountId || "",
+      "Project": demand.project || "",
+      "Role": demand.role || "",
       "Role Code": demand.roleCode || "",
       "Location": demand.location || "",
       "Start Month": demand.startMonth || "",
-      "Duration": demand.duration || "",
+      "Allocation %": demand.allocationPercentage || "",
+      "Probability": demand.probability || "",
       "Status": demand.status || "",
       "Added By": demand.addedBy || "",
       "Added On": demand.addedOn || "",
       "Last Updated By": demand.lastUpdatedBy || "",
       "Updated On": demand.updatedOn || "",
-      "Comments": demand.comments || ""
+      "Comment": demand.comment || ""
     }));
     
     // Generate filename based on filters

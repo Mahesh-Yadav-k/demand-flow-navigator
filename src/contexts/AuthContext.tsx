@@ -57,6 +57,8 @@ const rolePermissions: Record<Role, RolePermissions> = {
 interface AuthContextType {
   user: User | null;
   hasPermission: (permission: keyof RolePermissions) => boolean;
+  isLoading: boolean;
+  logout: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -72,14 +74,20 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
   
   const [user] = useState<User>(defaultUser);
+  const [isLoading] = useState<boolean>(false);
 
   const hasPermission = (permission: keyof RolePermissions): boolean => {
     if (!user) return false;
     return rolePermissions[user.role][permission];
   };
 
+  const logout = () => {
+    // Since we're removing authentication, this is just a placeholder
+    console.log('Logout functionality removed as per requirements');
+  };
+
   return (
-    <AuthContext.Provider value={{ user, hasPermission }}>
+    <AuthContext.Provider value={{ user, hasPermission, isLoading, logout }}>
       {children}
     </AuthContext.Provider>
   );

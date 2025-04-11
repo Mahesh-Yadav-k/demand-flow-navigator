@@ -1,4 +1,3 @@
-
 export type User = {
   id: string;
   email: string;
@@ -113,4 +112,13 @@ export type DashboardKPIs = {
   };
   projectStatusBreakdown: Record<ProjectStatus, number>;
   opportunityTrendsByMonth: Record<string, number>;
+};
+
+// Add ActionMenuItem type export
+export type ActionMenuItem<T> = {
+  label: string;
+  onClick: (item: T) => void;
+  icon?: React.ReactNode;
+  disabled?: boolean;
+  showIf?: (item: T) => boolean;
 };

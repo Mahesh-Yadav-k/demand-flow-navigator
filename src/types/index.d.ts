@@ -1,5 +1,5 @@
 
-// Add or update this to your types/index.d.ts file
+// Making sure this type definition is in the .d.ts file too for consistency
 
 export type ActionMenuItem<T> = {
   label: string;
@@ -8,3 +8,4 @@ export type ActionMenuItem<T> = {
   disabled?: boolean;
   showIf?: (item: T) => boolean;
 };
+
