@@ -1,8 +1,17 @@
-
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { Account, Demand, DashboardKPIs, AccountFilters, DemandFilters, DashboardFilters } from '@/types';
-import { mockAccounts, mockDemands, mockDashboardKPIs, calculateDashboardKPIs } from '@/services/mockData';
 import { useToast } from '@/hooks/use-toast';
+import { 
+  fetchAccounts, 
+  fetchDemands, 
+  addAccountAPI, 
+  updateAccountAPI, 
+  deleteAccountAPI,
+  addDemandAPI,
+  updateDemandAPI,
+  deleteDemandAPI,
+  fetchDashboardStats
+} from '@/services/api';
 
 interface DataContextType {
   accounts: Account[];
@@ -28,22 +37,63 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [demands, setDemands] = useState<Demand[]>([]);
-  const [dashboardKPIs, setDashboardKPIs] = useState<DashboardKPIs>(mockDashboardKPIs);
+  const [dashboardKPIs, setDashboardKPIs] = useState<DashboardKPIs>({
+    totalAccounts: 0,
+    totalDemands: 0,
+    activeAccounts: 0,
+    activeDemands: 0,
+    probableAccounts: 0,
+    probableDemands: 0,
+    accountsByStatus: {},
+    demandsByStatus: {},
+    accountsByProbability: {},
+    demandsByProbability: {},
+    accountsByVertical: {},
+    accountsByGeo: {},
+    demandsByRole: {},
+    demandsByLocation: {},
+    monthlyDemands: {}
+  });
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Load initial data
-    setIsLoading(true);
     const loadData = async () => {
+      setIsLoading(true);
       try {
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
-        // Set state with mock data
-        setAccounts(mockAccounts);
-        setDemands(mockDemands);
-        setDashboardKPIs(mockDashboardKPIs);
+        const accountsResponse = await fetchAccounts();
+        if (accountsResponse.success) {
+          setAccounts(accountsResponse.data);
+        }
+
+        const demandsResponse = await fetchDemands();
+        if (demandsResponse.success) {
+          setDemands(demandsResponse.data);
+        }
+
+        const statsResponse = await fetchDashboardStats();
+        if (statsResponse.success) {
+          const apiStats = statsResponse.data;
+          setDashboardKPIs({
+            totalAccounts: apiStats.totalAccounts || 0,
+            totalDemands: apiStats.totalDemands || 0,
+            activeAccounts: Object.values(apiStats.accountsByStatus || {})
+              .reduce((sum: number, count: number) => sum + count, 0),
+            activeDemands: Object.values(apiStats.demandsByStatus || {})
+              .reduce((sum: number, count: number) => sum + count, 0),
+            probableAccounts: accounts.filter(a => a.probability >= 75).length,
+            probableDemands: demands.filter(d => d.probability >= 75).length,
+            accountsByStatus: apiStats.accountsByStatus || {},
+            demandsByStatus: apiStats.demandsByStatus || {},
+            accountsByProbability: {},
+            demandsByProbability: {},
+            accountsByVertical: {},
+            accountsByGeo: {},
+            demandsByRole: {},
+            demandsByLocation: {},
+            monthlyDemands: {}
+          });
+        }
       } catch (error) {
         console.error('Error loading data:', error);
         toast({
@@ -59,33 +109,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     loadData();
   }, [toast]);
 
-  // Recalculate dashboard KPIs whenever accounts or demands change
-  useEffect(() => {
-    if (accounts.length > 0 && demands.length > 0) {
-      setDashboardKPIs(calculateDashboardKPIs(accounts, demands));
-    }
-  }, [accounts, demands]);
-
-  // CRUD operations for accounts
   const addAccount = async (accountData: Omit<Account, 'id'>): Promise<Account> => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const response = await addAccountAPI(accountData);
       
-      const newAccount: Account = {
-        ...accountData,
-        id: `acc-${accounts.length + 1}`,
-      };
-      
-      setAccounts(prev => [...prev, newAccount]);
-      
-      toast({
-        title: "Account Added",
-        description: `Successfully added account for ${newAccount.client}.`,
-      });
-      
-      return newAccount;
+      if (response.success && response.data) {
+        setAccounts(prev => [...prev, response.data]);
+        
+        toast({
+          title: "Account Added",
+          description: `Successfully added account for ${response.data.client}.`,
+        });
+        
+        return response.data;
+      } else {
+        throw new Error(response.message || "Failed to add account");
+      }
     } catch (error) {
       console.error('Error adding account:', error);
       toast({
@@ -102,17 +142,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateAccount = async (account: Account): Promise<Account> => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const response = await updateAccountAPI(account);
       
-      setAccounts(prev => prev.map(a => a.id === account.id ? account : a));
-      
-      toast({
-        title: "Account Updated",
-        description: `Successfully updated account for ${account.client}.`,
-      });
-      
-      return account;
+      if (response.success && response.data) {
+        setAccounts(prev => prev.map(a => a.id === account.id ? response.data : a));
+        
+        toast({
+          title: "Account Updated",
+          description: `Successfully updated account for ${account.client}.`,
+        });
+        
+        return response.data;
+      } else {
+        throw new Error(response.message || "Failed to update account");
+      }
     } catch (error) {
       console.error('Error updating account:', error);
       toast({
@@ -129,10 +172,6 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const deleteAccount = async (id: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Check if there are any demands linked to this account
       const linkedDemands = demands.filter(d => d.accountId === id);
       if (linkedDemands.length > 0) {
         toast({
@@ -143,14 +182,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return false;
       }
       
-      setAccounts(prev => prev.filter(a => a.id !== id));
+      const response = await deleteAccountAPI(id);
       
-      toast({
-        title: "Account Deleted",
-        description: "The account has been successfully deleted.",
-      });
-      
-      return true;
+      if (response.success && response.data) {
+        setAccounts(prev => prev.filter(a => a.id !== id));
+        
+        toast({
+          title: "Account Deleted",
+          description: "The account has been successfully deleted.",
+        });
+        
+        return true;
+      } else {
+        throw new Error(response.message || "Failed to delete account");
+      }
     } catch (error) {
       console.error('Error deleting account:', error);
       toast({
@@ -164,27 +209,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // CRUD operations for demands
   const addDemand = async (demandData: Omit<Demand, 'id' | 'sno'>): Promise<Demand> => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const response = await addDemandAPI(demandData);
       
-      const newDemand: Demand = {
-        ...demandData,
-        id: `dem-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        sno: demands.length + 1,
-      };
-      
-      setDemands(prev => [...prev, newDemand]);
-      
-      toast({
-        title: "Demand Added",
-        description: `Successfully added demand for ${newDemand.role}.`,
-      });
-      
-      return newDemand;
+      if (response.success && response.data) {
+        setDemands(prev => [...prev, response.data]);
+        
+        toast({
+          title: "Demand Added",
+          description: `Successfully added demand for ${response.data.role}.`,
+        });
+        
+        return response.data;
+      } else {
+        throw new Error(response.message || "Failed to add demand");
+      }
     } catch (error) {
       console.error('Error adding demand:', error);
       toast({
@@ -201,17 +242,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateDemand = async (demand: Demand): Promise<Demand> => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const response = await updateDemandAPI(demand);
       
-      setDemands(prev => prev.map(d => d.id === demand.id ? demand : d));
-      
-      toast({
-        title: "Demand Updated",
-        description: `Successfully updated demand for ${demand.role}.`,
-      });
-      
-      return demand;
+      if (response.success && response.data) {
+        setDemands(prev => prev.map(d => d.id === demand.id ? response.data : d));
+        
+        toast({
+          title: "Demand Updated",
+          description: `Successfully updated demand for ${demand.role}.`,
+        });
+        
+        return response.data;
+      } else {
+        throw new Error(response.message || "Failed to update demand");
+      }
     } catch (error) {
       console.error('Error updating demand:', error);
       toast({
@@ -228,17 +272,20 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const deleteDemand = async (id: string): Promise<boolean> => {
     setIsLoading(true);
     try {
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const response = await deleteDemandAPI(id);
       
-      setDemands(prev => prev.filter(d => d.id !== id));
-      
-      toast({
-        title: "Demand Deleted",
-        description: "The demand has been successfully deleted.",
-      });
-      
-      return true;
+      if (response.success && response.data) {
+        setDemands(prev => prev.filter(d => d.id !== id));
+        
+        toast({
+          title: "Demand Deleted",
+          description: "The demand has been successfully deleted.",
+        });
+        
+        return true;
+      } else {
+        throw new Error(response.message || "Failed to delete demand");
+      }
     } catch (error) {
       console.error('Error deleting demand:', error);
       toast({
@@ -252,35 +299,28 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   };
 
-  // Filter operations
   const filterAccounts = (filters: AccountFilters): Account[] => {
     return accounts.filter(account => {
-      // Project filter
       if (filters.project && filters.project.length > 0 && !filters.project.includes(account.project)) {
         return false;
       }
       
-      // Client filter
       if (filters.client && filters.client.length > 0 && !filters.client.includes(account.client)) {
         return false;
       }
       
-      // Status filter
       if (filters.opportunityStatus && filters.opportunityStatus.length > 0 && !filters.opportunityStatus.includes(account.opportunityStatus)) {
         return false;
       }
       
-      // Probability filter
       if (filters.probability && filters.probability.length > 0 && !filters.probability.includes(account.probability)) {
         return false;
       }
       
-      // Vertical filter
       if (filters.vertical && filters.vertical.length > 0 && !filters.vertical.includes(account.vertical)) {
         return false;
       }
       
-      // Start Month filter
       if (filters.startMonth && filters.startMonth.length > 0 && !filters.startMonth.includes(account.startMonth)) {
         return false;
       }
@@ -291,27 +331,22 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const filterDemands = (filters: DemandFilters): Demand[] => {
     return demands.filter(demand => {
-      // Role filter
       if (filters.role && filters.role.length > 0 && !filters.role.includes(demand.role)) {
         return false;
       }
       
-      // Location filter
       if (filters.location && filters.location.length > 0 && !filters.location.includes(demand.location)) {
         return false;
       }
       
-      // Probability filter
       if (filters.probability && filters.probability.length > 0 && !filters.probability.includes(demand.probability)) {
         return false;
       }
       
-      // Status filter
       if (filters.status && filters.status.length > 0 && !filters.status.includes(demand.status)) {
         return false;
       }
       
-      // Start Month filter
       if (filters.startMonth && filters.startMonth.length > 0 && !filters.startMonth.includes(demand.startMonth)) {
         return false;
       }
@@ -321,24 +356,19 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const filterDashboardData = (filters: DashboardFilters): DashboardKPIs => {
-    // Filter accounts based on dashboard filters
     const filteredAccounts = accounts.filter(account => {
-      // Geo filter
       if (filters.geo && filters.geo.length > 0 && !filters.geo.includes(account.geo)) {
         return false;
       }
       
-      // Vertical filter
       if (filters.vertical && filters.vertical.length > 0 && !filters.vertical.includes(account.vertical)) {
         return false;
       }
       
-      // Start Month filter
       if (filters.startMonth && filters.startMonth.length > 0 && !filters.startMonth.includes(account.startMonth)) {
         return false;
       }
       
-      // Opportunity Status filter
       if (filters.opportunityStatus && filters.opportunityStatus.length > 0 && !filters.opportunityStatus.includes(account.opportunityStatus)) {
         return false;
       }
@@ -346,17 +376,74 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       return true;
     });
     
-    // Get account IDs after filtering
     const filteredAccountIds = filteredAccounts.map(a => a.id);
     
-    // Filter demands based on filtered accounts
     const filteredDemands = demands.filter(demand => filteredAccountIds.includes(demand.accountId));
     
-    // Recalculate KPIs with filtered data
-    return calculateDashboardKPIs(filteredAccounts, filteredDemands);
+    return {
+      totalAccounts: filteredAccounts.length,
+      totalDemands: filteredDemands.length,
+      activeAccounts: filteredAccounts.filter(a => a.opportunityStatus === 'Active').length,
+      activeDemands: filteredDemands.filter(d => d.status === 'Active').length,
+      probableAccounts: filteredAccounts.filter(a => a.probability >= 75).length,
+      probableDemands: filteredDemands.filter(d => d.probability >= 75).length,
+      
+      accountsByStatus: filteredAccounts.reduce((acc, account) => {
+        const status = account.opportunityStatus;
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      
+      demandsByStatus: filteredDemands.reduce((acc, demand) => {
+        const status = demand.status;
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      
+      accountsByProbability: filteredAccounts.reduce((acc, account) => {
+        const probability = account.probability;
+        acc[probability] = (acc[probability] || 0) + 1;
+        return acc;
+      }, {} as Record<number, number>),
+      
+      demandsByProbability: filteredDemands.reduce((acc, demand) => {
+        const probability = demand.probability;
+        acc[probability] = (acc[probability] || 0) + 1;
+        return acc;
+      }, {} as Record<number, number>),
+      
+      accountsByVertical: filteredAccounts.reduce((acc, account) => {
+        const vertical = account.vertical;
+        acc[vertical] = (acc[vertical] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      
+      accountsByGeo: filteredAccounts.reduce((acc, account) => {
+        const geo = account.geo;
+        acc[geo] = (acc[geo] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      
+      demandsByRole: filteredDemands.reduce((acc, demand) => {
+        const role = demand.role;
+        acc[role] = (acc[role] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      
+      demandsByLocation: filteredDemands.reduce((acc, demand) => {
+        const location = demand.location;
+        acc[location] = (acc[location] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      
+      monthlyDemands: filteredDemands.reduce((acc, demand) => {
+        const month = demand.startMonth;
+        acc[month] = (acc[month] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>)
+    };
   };
 
-  // Lookup operations
   const getAccountById = (id: string): Account | undefined => {
     return accounts.find(a => a.id === id);
   };
