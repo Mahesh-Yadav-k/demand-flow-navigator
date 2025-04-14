@@ -38,6 +38,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [demands, setDemands] = useState<Demand[]>([]);
   const [dashboardKPIs, setDashboardKPIs] = useState<DashboardKPIs>({
+    totalOpportunities: 0,
+    opportunitiesByGeo: {},
+    opportunitiesByVertical: {},
+    demandFulfillment: {
+      mapped: 0,
+      total: 0,
+      percentage: 0
+    },
+    projectStatusBreakdown: {},
+    opportunityTrendsByMonth: {},
     totalAccounts: 0,
     totalDemands: 0,
     activeAccounts: 0,
@@ -54,6 +64,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     demandsByLocation: {},
     monthlyDemands: {}
   });
+  
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const { toast } = useToast();
 
@@ -75,6 +86,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (statsResponse.success) {
           const apiStats = statsResponse.data;
           setDashboardKPIs({
+            totalOpportunities: apiStats.totalOpportunities || 0,
+            opportunitiesByGeo: apiStats.opportunitiesByGeo || {},
+            opportunitiesByVertical: apiStats.opportunitiesByVertical || {},
+            demandFulfillment: apiStats.demandFulfillment || { mapped: 0, total: 0, percentage: 0 },
+            projectStatusBreakdown: apiStats.projectStatusBreakdown || {},
+            opportunityTrendsByMonth: apiStats.opportunityTrendsByMonth || {},
             totalAccounts: apiStats.totalAccounts || 0,
             totalDemands: apiStats.totalDemands || 0,
             activeAccounts: Object.values(apiStats.accountsByStatus || {})
@@ -85,13 +102,13 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             probableDemands: demands.filter(d => d.probability >= 75).length,
             accountsByStatus: apiStats.accountsByStatus || {},
             demandsByStatus: apiStats.demandsByStatus || {},
-            accountsByProbability: {},
-            demandsByProbability: {},
-            accountsByVertical: {},
-            accountsByGeo: {},
-            demandsByRole: {},
-            demandsByLocation: {},
-            monthlyDemands: {}
+            accountsByProbability: apiStats.accountsByProbability || {},
+            demandsByProbability: apiStats.demandsByProbability || {},
+            accountsByVertical: apiStats.accountsByVertical || {},
+            accountsByGeo: apiStats.accountsByGeo || {},
+            demandsByRole: apiStats.demandsByRole || {},
+            demandsByLocation: apiStats.demandsByLocation || {},
+            monthlyDemands: apiStats.monthlyDemands || {}
           });
         }
       } catch (error) {
@@ -381,10 +398,39 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const filteredDemands = demands.filter(demand => filteredAccountIds.includes(demand.accountId));
     
     return {
+      totalOpportunities: filteredAccounts.length,
+      opportunitiesByGeo: filteredAccounts.reduce((acc, account) => {
+        const geo = account.geo;
+        acc[geo] = (acc[geo] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      opportunitiesByVertical: filteredAccounts.reduce((acc, account) => {
+        const vertical = account.vertical;
+        acc[vertical] = (acc[vertical] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      demandFulfillment: {
+        mapped: filteredDemands.filter(d => d.resourceMapped).length,
+        total: filteredDemands.length,
+        percentage: filteredDemands.length > 0 
+          ? Math.round((filteredDemands.filter(d => d.resourceMapped).length / filteredDemands.length) * 100)
+          : 0
+      },
+      projectStatusBreakdown: filteredAccounts.reduce((acc, account) => {
+        const status = account.projectStatus;
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      opportunityTrendsByMonth: filteredAccounts.reduce((acc, account) => {
+        const month = account.startMonth;
+        acc[month] = (acc[month] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>),
+      
       totalAccounts: filteredAccounts.length,
       totalDemands: filteredDemands.length,
-      activeAccounts: filteredAccounts.filter(a => a.opportunityStatus === 'Active').length,
-      activeDemands: filteredDemands.filter(d => d.status === 'Active').length,
+      activeAccounts: filteredAccounts.filter(a => a.opportunityStatus === 'Closed Won').length,
+      activeDemands: filteredDemands.filter(d => d.status === 'In Progress').length,
       probableAccounts: filteredAccounts.filter(a => a.probability >= 75).length,
       probableDemands: filteredDemands.filter(d => d.probability >= 75).length,
       
@@ -438,7 +484,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       monthlyDemands: filteredDemands.reduce((acc, demand) => {
         const month = demand.startMonth;
-        acc[month] = (acc[month] || 0) + 1;
+        if (month) {
+          acc[month] = (acc[month] || 0) + 1;
+        }
         return acc;
       }, {} as Record<string, number>)
     };

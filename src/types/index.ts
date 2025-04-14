@@ -1,3 +1,4 @@
+
 export type User = {
   id: string;
   email: string;
@@ -110,8 +111,25 @@ export type DashboardKPIs = {
     total: number;
     percentage: number;
   };
-  projectStatusBreakdown: Record<ProjectStatus, number>;
+  projectStatusBreakdown: Record<string, number>;
   opportunityTrendsByMonth: Record<string, number>;
+  
+  // Add these fields to make them compatible with DataContext implementation
+  totalAccounts: number;
+  totalDemands: number;
+  activeAccounts: number;
+  activeDemands: number;
+  probableAccounts: number;
+  probableDemands: number;
+  accountsByStatus: Record<string, number>;
+  demandsByStatus: Record<string, number>;
+  accountsByProbability: Record<number, number>;
+  demandsByProbability: Record<number, number>;
+  accountsByVertical: Record<string, number>;
+  accountsByGeo: Record<string, number>;
+  demandsByRole: Record<string, number>;
+  demandsByLocation: Record<string, number>;
+  monthlyDemands: Record<string, number>;
 };
 
 // Add ActionMenuItem type export

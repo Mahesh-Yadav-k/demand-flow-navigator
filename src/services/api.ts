@@ -42,15 +42,33 @@ async function apiRequest<T>(
       throw new Error(errorData.message || `API request failed: ${response.status}`);
     }
     
-    return await response.json();
+    const jsonResponse = await response.json();
+    return {
+      success: true,
+      data: jsonResponse.data || jsonResponse,
+      message: jsonResponse.message
+    };
   } catch (error) {
-    return handleApiError(error as Error);
+    console.error("API Error:", error);
+    
+    // Instead of throwing, return an error response with empty data
+    // This helps prevent null/undefined propagation to components
+    return {
+      success: false,
+      data: [] as unknown as T,
+      message: error instanceof Error ? error.message : 'Unknown error occurred'
+    };
   }
 }
 
 // Account APIs
 export const fetchAccounts = async (): Promise<ApiResponse<Account[]>> => {
-  return apiRequest<Account[]>('/accounts');
+  try {
+    return await apiRequest<Account[]>('/accounts');
+  } catch (error) {
+    console.error("Failed to fetch accounts:", error);
+    return { success: false, data: [], message: "Failed to fetch accounts" };
+  }
 };
 
 export const addAccountAPI = async (account: Omit<Account, 'id'>): Promise<ApiResponse<Account>> => {
@@ -67,7 +85,12 @@ export const deleteAccountAPI = async (id: string): Promise<ApiResponse<boolean>
 
 // Demand APIs
 export const fetchDemands = async (): Promise<ApiResponse<Demand[]>> => {
-  return apiRequest<Demand[]>('/demands');
+  try {
+    return await apiRequest<Demand[]>('/demands');
+  } catch (error) {
+    console.error("Failed to fetch demands:", error);
+    return { success: false, data: [], message: "Failed to fetch demands" };
+  }
 };
 
 export const addDemandAPI = async (demand: Omit<Demand, 'id' | 'sno'>): Promise<ApiResponse<Demand>> => {
@@ -93,5 +116,63 @@ export const searchAPI = async (query: string, entity: 'accounts' | 'demands'): 
 
 // Stats and metrics API
 export const fetchDashboardStats = async (): Promise<ApiResponse<any>> => {
-  return apiRequest<any>('/dashboard/stats');
+  try {
+    const response = await apiRequest<any>('/dashboard/stats');
+    
+    // Ensure essential properties exist to prevent Object.entries errors
+    if (response.success && response.data) {
+      const baseStats = {
+        totalOpportunities: 0,
+        opportunitiesByGeo: {},
+        opportunitiesByVertical: {},
+        demandFulfillment: { mapped: 0, total: 0, percentage: 0 },
+        projectStatusBreakdown: {},
+        opportunityTrendsByMonth: {},
+        totalAccounts: 0,
+        totalDemands: 0,
+        accountsByStatus: {},
+        demandsByStatus: {},
+        accountsByProbability: {},
+        demandsByProbability: {},
+        accountsByVertical: {},
+        accountsByGeo: {},
+        demandsByRole: {},
+        demandsByLocation: {},
+        monthlyDemands: {}
+      };
+      
+      return {
+        ...response,
+        data: { ...baseStats, ...response.data }
+      };
+    }
+    
+    return response;
+  } catch (error) {
+    console.error("Failed to fetch dashboard stats:", error);
+    // Return a default object with empty objects for properties that use Object.entries
+    return { 
+      success: false, 
+      data: {
+        totalOpportunities: 0,
+        opportunitiesByGeo: {},
+        opportunitiesByVertical: {},
+        demandFulfillment: { mapped: 0, total: 0, percentage: 0 },
+        projectStatusBreakdown: {},
+        opportunityTrendsByMonth: {},
+        totalAccounts: 0,
+        totalDemands: 0,
+        accountsByStatus: {},
+        demandsByStatus: {},
+        accountsByProbability: {},
+        demandsByProbability: {},
+        accountsByVertical: {},
+        accountsByGeo: {},
+        demandsByRole: {},
+        demandsByLocation: {},
+        monthlyDemands: {}
+      }, 
+      message: "Failed to fetch dashboard stats" 
+    };
+  }
 };
