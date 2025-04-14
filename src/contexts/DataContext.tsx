@@ -86,14 +86,14 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (statsResponse.success) {
           const apiStats = statsResponse.data;
           setDashboardKPIs({
-            totalOpportunities: apiStats.totalOpportunities || 0,
+            totalOpportunities: Number(apiStats.totalOpportunities) || 0,
             opportunitiesByGeo: apiStats.opportunitiesByGeo || {},
             opportunitiesByVertical: apiStats.opportunitiesByVertical || {},
             demandFulfillment: apiStats.demandFulfillment || { mapped: 0, total: 0, percentage: 0 },
             projectStatusBreakdown: apiStats.projectStatusBreakdown || {},
             opportunityTrendsByMonth: apiStats.opportunityTrendsByMonth || {},
-            totalAccounts: apiStats.totalAccounts || 0,
-            totalDemands: apiStats.totalDemands || 0,
+            totalAccounts: Number(apiStats.totalAccounts) || 0,
+            totalDemands: Number(apiStats.totalDemands) || 0,
             activeAccounts: Object.values(apiStats.accountsByStatus || {})
               .reduce((sum: number, count: number) => sum + count, 0),
             activeDemands: Object.values(apiStats.demandsByStatus || {})

@@ -1,6 +1,6 @@
-
-import { Account, Demand } from '@/types';
+import { Account, Demand, DashboardKPIs } from '@/types';
 import { toast } from "sonner";
+import { mockAccounts, mockDemands, mockDashboardKPIs } from './mockData';
 
 // API base URL - would point to your FastAPI backend
 const API_BASE_URL = 'http://localhost:8000/api';
@@ -51,12 +51,22 @@ async function apiRequest<T>(
   } catch (error) {
     console.error("API Error:", error);
     
-    // Instead of throwing, return an error response with empty data
-    // This helps prevent null/undefined propagation to components
+    // Fall back to mock data if API is unavailable
+    let mockData: any;
+    if (endpoint.includes('/accounts')) {
+      mockData = mockAccounts;
+    } else if (endpoint.includes('/demands')) {
+      mockData = mockDemands;
+    } else if (endpoint.includes('/dashboard/stats')) {
+      mockData = mockDashboardKPIs;
+    } else {
+      mockData = [] as unknown as T;
+    }
+    
     return {
       success: false,
-      data: [] as unknown as T,
-      message: error instanceof Error ? error.message : 'Unknown error occurred'
+      data: mockData as T,
+      message: error instanceof Error ? error.message : 'Using mock data due to API unavailability'
     };
   }
 }
@@ -115,13 +125,13 @@ export const searchAPI = async (query: string, entity: 'accounts' | 'demands'): 
 };
 
 // Stats and metrics API
-export const fetchDashboardStats = async (): Promise<ApiResponse<any>> => {
+export const fetchDashboardStats = async (): Promise<ApiResponse<DashboardKPIs>> => {
   try {
-    const response = await apiRequest<any>('/dashboard/stats');
+    const response = await apiRequest<DashboardKPIs>('/dashboard/stats');
     
     // Ensure essential properties exist to prevent Object.entries errors
     if (response.success && response.data) {
-      const baseStats = {
+      const baseStats: DashboardKPIs = {
         totalOpportunities: 0,
         opportunitiesByGeo: {},
         opportunitiesByVertical: {},
@@ -130,6 +140,10 @@ export const fetchDashboardStats = async (): Promise<ApiResponse<any>> => {
         opportunityTrendsByMonth: {},
         totalAccounts: 0,
         totalDemands: 0,
+        activeAccounts: 0,
+        activeDemands: 0,
+        probableAccounts: 0,
+        probableDemands: 0,
         accountsByStatus: {},
         demandsByStatus: {},
         accountsByProbability: {},
@@ -153,26 +167,8 @@ export const fetchDashboardStats = async (): Promise<ApiResponse<any>> => {
     // Return a default object with empty objects for properties that use Object.entries
     return { 
       success: false, 
-      data: {
-        totalOpportunities: 0,
-        opportunitiesByGeo: {},
-        opportunitiesByVertical: {},
-        demandFulfillment: { mapped: 0, total: 0, percentage: 0 },
-        projectStatusBreakdown: {},
-        opportunityTrendsByMonth: {},
-        totalAccounts: 0,
-        totalDemands: 0,
-        accountsByStatus: {},
-        demandsByStatus: {},
-        accountsByProbability: {},
-        demandsByProbability: {},
-        accountsByVertical: {},
-        accountsByGeo: {},
-        demandsByRole: {},
-        demandsByLocation: {},
-        monthlyDemands: {}
-      }, 
-      message: "Failed to fetch dashboard stats" 
+      data: mockDashboardKPIs,
+      message: "Failed to fetch dashboard stats, using mock data" 
     };
   }
 };

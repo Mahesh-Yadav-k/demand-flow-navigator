@@ -151,11 +151,67 @@ export const calculateDashboardKPIs = (accounts: Account[], demands: Demand[]): 
   const projectStatusBreakdown = accounts.reduce((acc, account) => {
     acc[account.projectStatus] = (acc[account.projectStatus] || 0) + 1;
     return acc;
-  }, {} as Record<ProjectStatus, number>);
+  }, {} as Record<string, number>);
   
   // Opportunity Trends by Start Month
   const opportunityTrendsByMonth = accounts.reduce((acc, account) => {
     acc[account.startMonth] = (acc[account.startMonth] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  // Account by Status
+  const accountsByStatus = accounts.reduce((acc, account) => {
+    acc[account.opportunityStatus] = (acc[account.opportunityStatus] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  // Demand by Status
+  const demandsByStatus = demands.reduce((acc, demand) => {
+    acc[demand.status] = (acc[demand.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  // Accounts by Probability
+  const accountsByProbability = accounts.reduce((acc, account) => {
+    acc[account.probability] = (acc[account.probability] || 0) + 1;
+    return acc;
+  }, {} as Record<number, number>);
+  
+  // Demands by Probability
+  const demandsByProbability = demands.reduce((acc, demand) => {
+    acc[demand.probability] = (acc[demand.probability] || 0) + 1;
+    return acc;
+  }, {} as Record<number, number>);
+  
+  // Accounts by Vertical
+  const accountsByVertical = accounts.reduce((acc, account) => {
+    acc[account.vertical] = (acc[account.vertical] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  // Accounts by Geo
+  const accountsByGeo = accounts.reduce((acc, account) => {
+    acc[account.geo] = (acc[account.geo] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  // Demands by Role
+  const demandsByRole = demands.reduce((acc, demand) => {
+    acc[demand.role] = (acc[demand.role] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  // Demands by Location
+  const demandsByLocation = demands.reduce((acc, demand) => {
+    acc[demand.location] = (acc[demand.location] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+  
+  // Monthly Demands
+  const monthlyDemands = demands.reduce((acc, demand) => {
+    if (demand.startMonth) {
+      acc[demand.startMonth] = (acc[demand.startMonth] || 0) + 1;
+    }
     return acc;
   }, {} as Record<string, number>);
   
@@ -169,7 +225,23 @@ export const calculateDashboardKPIs = (accounts: Account[], demands: Demand[]): 
       percentage: demandFulfillmentPercentage
     },
     projectStatusBreakdown,
-    opportunityTrendsByMonth
+    opportunityTrendsByMonth,
+    // Add these required properties to match the DashboardKPIs type
+    totalAccounts: accounts.length,
+    totalDemands: demands.length,
+    activeAccounts: accounts.filter(a => a.opportunityStatus === 'Closed Won').length,
+    activeDemands: demands.filter(d => d.status === 'In Progress').length,
+    probableAccounts: accounts.filter(a => a.probability >= 75).length,
+    probableDemands: demands.filter(d => d.probability >= 75).length,
+    accountsByStatus,
+    demandsByStatus,
+    accountsByProbability,
+    demandsByProbability,
+    accountsByVertical,
+    accountsByGeo,
+    demandsByRole,
+    demandsByLocation,
+    monthlyDemands
   };
 };
 
