@@ -153,7 +153,7 @@ export const calculateDashboardKPIs = (accounts: Account[], demands: Demand[]): 
     return acc;
   }, {} as Record<string, number>);
   
-  // Opportunity Trends by Start Month
+  // Opportunity Trends by Month
   const opportunityTrendsByMonth = accounts.reduce((acc, account) => {
     acc[account.startMonth] = (acc[account.startMonth] || 0) + 1;
     return acc;

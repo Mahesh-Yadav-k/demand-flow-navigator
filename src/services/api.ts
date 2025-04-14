@@ -1,3 +1,4 @@
+
 import { Account, Demand, DashboardKPIs } from '@/types';
 import { toast } from "sonner";
 import { mockAccounts, mockDemands, mockDashboardKPIs } from './mockData';
@@ -63,6 +64,8 @@ async function apiRequest<T>(
       mockData = [] as unknown as T;
     }
     
+    toast.warning("Using mock data due to API unavailability");
+    
     return {
       success: false,
       data: mockData as T,
@@ -77,7 +80,7 @@ export const fetchAccounts = async (): Promise<ApiResponse<Account[]>> => {
     return await apiRequest<Account[]>('/accounts');
   } catch (error) {
     console.error("Failed to fetch accounts:", error);
-    return { success: false, data: [], message: "Failed to fetch accounts" };
+    return { success: false, data: mockAccounts, message: "Failed to fetch accounts" };
   }
 };
 
@@ -99,7 +102,7 @@ export const fetchDemands = async (): Promise<ApiResponse<Demand[]>> => {
     return await apiRequest<Demand[]>('/demands');
   } catch (error) {
     console.error("Failed to fetch demands:", error);
-    return { success: false, data: [], message: "Failed to fetch demands" };
+    return { success: false, data: mockDemands, message: "Failed to fetch demands" };
   }
 };
 
@@ -131,6 +134,7 @@ export const fetchDashboardStats = async (): Promise<ApiResponse<DashboardKPIs>>
     
     // Ensure essential properties exist to prevent Object.entries errors
     if (response.success && response.data) {
+      // Create a default dashboard stats object with all required properties
       const baseStats: DashboardKPIs = {
         totalOpportunities: 0,
         opportunitiesByGeo: {},
@@ -155,6 +159,7 @@ export const fetchDashboardStats = async (): Promise<ApiResponse<DashboardKPIs>>
         monthlyDemands: {}
       };
       
+      // Merge the response data with the base stats to ensure all properties exist
       return {
         ...response,
         data: { ...baseStats, ...response.data }
